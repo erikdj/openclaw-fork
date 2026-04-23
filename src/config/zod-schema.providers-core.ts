@@ -928,6 +928,9 @@ export const SlackAccountSchema = z
     responsePrefix: z.string().optional(),
     ackReaction: z.string().optional(),
     typingReaction: z.string().optional(),
+    subagentReaction: z.string().optional(),
+    completionReaction: z.string().optional(),
+    errorReaction: z.string().optional(),
   })
   .strict()
   .superRefine((value) => {

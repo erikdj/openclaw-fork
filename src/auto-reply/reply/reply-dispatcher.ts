@@ -64,14 +64,33 @@ export type ReplyDispatcherWithTypingOptions = Omit<ReplyDispatcherOptions, "onI
   onIdle?: () => void;
   /** Called when the typing controller is cleaned up (e.g., on NO_REPLY). */
   onCleanup?: () => void;
+  /** Called on successful run completion. Opt-in — if set, channel can swap alive indicator to a success indicator. */
+  onRunSuccess?: () => void;
+  /** Called on run failure. Opt-in — if set, channel can swap alive indicator to a failure indicator. */
+  onRunFailure?: (reason?: string) => void;
+  /** Called when a subagent becomes active. Opt-in. */
+  onSubagentStart?: () => void;
+  /** Called when the subagent ends or its TTL expires. Opt-in. */
+  onSubagentEnd?: () => void;
 };
 
 type ReplyDispatcherWithTypingResult = {
   dispatcher: ReplyDispatcher;
-  replyOptions: Pick<GetReplyOptions, "onReplyStart" | "onTypingController" | "onTypingCleanup">;
+  replyOptions: Pick<
+    GetReplyOptions,
+    | "onReplyStart"
+    | "onTypingController"
+    | "onTypingCleanup"
+    | "onTypingRunSuccess"
+    | "onTypingRunFailure"
+    | "onTypingSubagentStart"
+    | "onTypingSubagentEnd"
+  >;
   markDispatchIdle: () => void;
   /** Signal that the model run is complete so the typing controller can stop. */
   markRunComplete: () => void;
+  /** Signal that the model run failed so the typing controller can emit a failure reaction. */
+  markRunFailure: (reason?: string) => void;
 };
 
 export type ReplyDispatcher = {
@@ -228,10 +247,24 @@ export function createReplyDispatcher(options: ReplyDispatcherOptions): ReplyDis
 export function createReplyDispatcherWithTyping(
   options: ReplyDispatcherWithTypingOptions,
 ): ReplyDispatcherWithTypingResult {
-  const { typingCallbacks, onReplyStart, onIdle, onCleanup, ...dispatcherOptions } = options;
+  const {
+    typingCallbacks,
+    onReplyStart,
+    onIdle,
+    onCleanup,
+    onRunSuccess,
+    onRunFailure,
+    onSubagentStart,
+    onSubagentEnd,
+    ...dispatcherOptions
+  } = options;
   const resolvedOnReplyStart = onReplyStart ?? typingCallbacks?.onReplyStart;
   const resolvedOnIdle = onIdle ?? typingCallbacks?.onIdle;
   const resolvedOnCleanup = onCleanup ?? typingCallbacks?.onCleanup;
+  const resolvedOnRunSuccess = onRunSuccess ?? typingCallbacks?.onRunSuccess;
+  const resolvedOnRunFailure = onRunFailure ?? typingCallbacks?.onRunFailure;
+  const resolvedOnSubagentStart = onSubagentStart ?? typingCallbacks?.onSubagentStart;
+  const resolvedOnSubagentEnd = onSubagentEnd ?? typingCallbacks?.onSubagentEnd;
   let typingController: TypingController | undefined;
   const dispatcher = createReplyDispatcher({
     ...dispatcherOptions,
@@ -246,6 +279,10 @@ export function createReplyDispatcherWithTyping(
     replyOptions: {
       onReplyStart: resolvedOnReplyStart,
       onTypingCleanup: resolvedOnCleanup,
+      onTypingRunSuccess: resolvedOnRunSuccess,
+      onTypingRunFailure: resolvedOnRunFailure,
+      onTypingSubagentStart: resolvedOnSubagentStart,
+      onTypingSubagentEnd: resolvedOnSubagentEnd,
       onTypingController: (typing) => {
         typingController = typing;
       },
@@ -256,6 +293,9 @@ export function createReplyDispatcherWithTyping(
     },
     markRunComplete: () => {
       typingController?.markRunComplete();
+    },
+    markRunFailure: (reason?: string) => {
+      typingController?.markRunFailure(reason);
     },
   };
 }

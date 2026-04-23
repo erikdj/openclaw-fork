@@ -199,6 +199,26 @@ export type SlackAccountConfig = {
   ackReaction?: string;
   /** Reaction emoji added while processing a reply (e.g. "hourglass_flowing_sand"). Removed when done. Useful as a typing indicator fallback when assistant mode is not enabled. */
   typingReaction?: string;
+  /**
+   * Reaction emoji added while a subagent is running under the parent agent
+   * (e.g. "handshake"). Distinguishes "parent waiting on spawned child" from
+   * "parent actively working" vs. "parent truly idle/dead". Removed when the
+   * subagent completes or its refresh TTL expires without new activity.
+   */
+  subagentReaction?: string;
+  /**
+   * Reaction emoji added after a parent run completes successfully
+   * (e.g. "white_check_mark"). Replaces the typingReaction. Persistent —
+   * stays on the message so the user can see at a glance that the work
+   * finished cleanly.
+   */
+  completionReaction?: string;
+  /**
+   * Reaction emoji added when a parent run ends with an error
+   * (e.g. "x"). Replaces the typingReaction. Persistent — stays on the
+   * message to surface the failure distinctly from a normal completion.
+   */
+  errorReaction?: string;
 };
 
 export type SlackConfig = {

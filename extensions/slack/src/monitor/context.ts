@@ -57,6 +57,9 @@ export type SlackMonitorContext = {
   textLimit: number;
   ackReactionScope: string;
   typingReaction: string;
+  subagentReaction: string;
+  completionReaction: string;
+  errorReaction: string;
   mediaMaxBytes: number;
   removeAckAfterReply: boolean;
 
@@ -121,6 +124,9 @@ export function createSlackMonitorContext(params: {
   textLimit: number;
   ackReactionScope: string;
   typingReaction: string;
+  subagentReaction: string;
+  completionReaction: string;
+  errorReaction: string;
   mediaMaxBytes: number;
   removeAckAfterReply: boolean;
 }): SlackMonitorContext {
@@ -421,6 +427,9 @@ export function createSlackMonitorContext(params: {
     textLimit: params.textLimit,
     ackReactionScope: params.ackReactionScope,
     typingReaction: params.typingReaction,
+    subagentReaction: params.subagentReaction,
+    completionReaction: params.completionReaction,
+    errorReaction: params.errorReaction,
     mediaMaxBytes: params.mediaMaxBytes,
     removeAckAfterReply: params.removeAckAfterReply,
     logger,

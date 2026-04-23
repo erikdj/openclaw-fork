@@ -51,6 +51,9 @@ export type TypingSignaler = {
   signalTextDelta: (text?: string) => Promise<void>;
   signalReasoningDelta: () => Promise<void>;
   signalToolStart: () => Promise<void>;
+  signalSubagentStart: () => void;
+  signalSubagentEnd: () => void;
+  signalSubagentRefresh: () => void;
 };
 
 export function createTypingSignaler(params: {
@@ -140,6 +143,27 @@ export function createTypingSignaler(params: {
     typing.refreshTypingTtl();
   };
 
+  const signalSubagentStart = () => {
+    if (disabled) {
+      return;
+    }
+    typing.setSubagentActive(true);
+  };
+
+  const signalSubagentEnd = () => {
+    if (disabled) {
+      return;
+    }
+    typing.setSubagentActive(false);
+  };
+
+  const signalSubagentRefresh = () => {
+    if (disabled) {
+      return;
+    }
+    typing.refreshSubagentTtl();
+  };
+
   return {
     mode,
     shouldStartImmediately,
@@ -151,5 +175,8 @@ export function createTypingSignaler(params: {
     signalTextDelta,
     signalReasoningDelta,
     signalToolStart,
+    signalSubagentStart,
+    signalSubagentEnd,
+    signalSubagentRefresh,
   };
 }

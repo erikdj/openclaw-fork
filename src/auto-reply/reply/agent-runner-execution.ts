@@ -457,6 +457,18 @@ export async function runAgentTurnWithFallback(params: {
                       await params.typingSignals.signalToolStart();
                       await params.opts?.onToolStart?.({ name, phase });
                     }
+                    // Surface subagent presence separately so channels that opt
+                    // in can render a distinct "waiting on child" indicator.
+                    // The indicator is removed again on the matching tool end
+                    // event, and a safety TTL in the typing controller clears
+                    // it if the end event is lost.
+                    if (name === "sessions_spawn") {
+                      if (phase === "start") {
+                        params.typingSignals.signalSubagentStart();
+                      } else if (phase === "end") {
+                        params.typingSignals.signalSubagentEnd();
+                      }
+                    }
                   }
                   // Track auto-compaction and notify higher layers.
                   if (evt.stream === "compaction") {

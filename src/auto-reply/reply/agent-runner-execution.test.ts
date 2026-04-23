@@ -128,6 +128,9 @@ function createMockTypingSignaler(): TypingSignaler {
     signalTextDelta: vi.fn(async () => {}),
     signalReasoningDelta: vi.fn(async () => {}),
     signalToolStart: vi.fn(async () => {}),
+    signalSubagentStart: vi.fn(),
+    signalSubagentEnd: vi.fn(),
+    signalSubagentRefresh: vi.fn(),
   };
 }
 

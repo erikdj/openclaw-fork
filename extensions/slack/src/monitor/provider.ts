@@ -259,6 +259,9 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
   });
   const ackReactionScope = cfg.messages?.ackReactionScope ?? "group-mentions";
   const typingReaction = slackCfg.typingReaction?.trim() ?? "";
+  const subagentReaction = slackCfg.subagentReaction?.trim() ?? "";
+  const completionReaction = slackCfg.completionReaction?.trim() ?? "";
+  const errorReaction = slackCfg.errorReaction?.trim() ?? "";
   const mediaMaxBytes = (opts.mediaMaxMb ?? slackCfg.mediaMaxMb ?? 20) * 1024 * 1024;
   const removeAckAfterReply = cfg.messages?.removeAckAfterReply ?? false;
   const { App, HTTPReceiver } = getSlackBoltInterop();
@@ -359,6 +362,9 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
     textLimit,
     ackReactionScope,
     typingReaction,
+    subagentReaction,
+    completionReaction,
+    errorReaction,
     mediaMaxBytes,
     removeAckAfterReply,
   });

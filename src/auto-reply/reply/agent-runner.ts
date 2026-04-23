@@ -399,6 +399,7 @@ export async function runReplyAgent(params: {
         `Role ordering conflict (${reason}). Restarting session ${sessionKey} -> ${nextSessionId}.`,
       cleanupTranscripts: true,
     });
+  let runError: unknown;
   try {
     const runStartedAt = Date.now();
     const runOutcome = await runAgentTurnWithFallback({
@@ -786,10 +787,21 @@ export async function runReplyAgent(params: {
     // Keep the followup queue moving even when an unexpected exception escapes
     // the run path; the caller still receives the original error.
     finalizeWithFollowup(undefined, queueKey, runFollowupTurn);
+    runError = error;
     throw error;
   } finally {
     blockReplyPipeline?.stop();
-    typing.markRunComplete();
+    if (runError === undefined) {
+      typing.markRunComplete();
+    } else {
+      const reason =
+        runError instanceof Error
+          ? runError.message
+          : typeof runError === "string"
+            ? runError
+            : "unknown error";
+      typing.markRunFailure(reason);
+    }
     // Safety net: the dispatcher's onIdle callback normally fires
     // markDispatchIdle(), but if the dispatcher exits early, errors,
     // or the reply path doesn't go through it cleanly, the second

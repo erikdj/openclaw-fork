@@ -171,6 +171,22 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
 
   const typingTarget = statusThreadTs ? `${message.channel}/${statusThreadTs}` : message.channel;
   const typingReaction = ctx.typingReaction;
+  const subagentReaction = ctx.subagentReaction;
+  const completionReaction = ctx.completionReaction;
+  const errorReaction = ctx.errorReaction;
+  const reactionClient = { token: ctx.botToken, client: ctx.app.client } as const;
+  const addReaction = async (name: string): Promise<void> => {
+    if (!name || !message.ts) {
+      return;
+    }
+    await reactSlackMessage(message.channel, message.ts, name, reactionClient).catch(() => {});
+  };
+  const removeReaction = async (name: string): Promise<void> => {
+    if (!name || !message.ts) {
+      return;
+    }
+    await removeSlackReaction(message.channel, message.ts, name, reactionClient).catch(() => {});
+  };
   const { onModelSelected, ...replyPipeline } = createChannelReplyPipeline({
     cfg,
     agentId: route.agentId,
@@ -184,12 +200,7 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
           threadTs: statusThreadTs,
           status: "is typing...",
         });
-        if (typingReaction && message.ts) {
-          await reactSlackMessage(message.channel, message.ts, typingReaction, {
-            token: ctx.botToken,
-            client: ctx.app.client,
-          }).catch(() => {});
-        }
+        await addReaction(typingReaction);
       },
       stop: async () => {
         if (!didSetStatus) {
@@ -201,12 +212,27 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
           threadTs: statusThreadTs,
           status: "",
         });
-        if (typingReaction && message.ts) {
-          await removeSlackReaction(message.channel, message.ts, typingReaction, {
-            token: ctx.botToken,
-            client: ctx.app.client,
-          }).catch(() => {});
+        await removeReaction(typingReaction);
+      },
+      onRunSuccess: async () => {
+        if (!completionReaction) {
+          return;
         }
+        await removeReaction(typingReaction);
+        await addReaction(completionReaction);
+      },
+      onRunFailure: async () => {
+        if (!errorReaction) {
+          return;
+        }
+        await removeReaction(typingReaction);
+        await addReaction(errorReaction);
+      },
+      onSubagentStart: async () => {
+        await addReaction(subagentReaction);
+      },
+      onSubagentEnd: async () => {
+        await removeReaction(subagentReaction);
       },
       onStartError: (err) => {
         logTypingFailure({
