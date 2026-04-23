@@ -10237,6 +10237,15 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
         typingReaction: {
           type: "string",
         },
+        subagentReaction: {
+          type: "string",
+        },
+        completionReaction: {
+          type: "string",
+        },
+        errorReaction: {
+          type: "string",
+        },
         accounts: {
           type: "object",
           propertyNames: {
@@ -11043,6 +11052,15 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
                 type: "string",
               },
               typingReaction: {
+                type: "string",
+              },
+              subagentReaction: {
+                type: "string",
+              },
+              completionReaction: {
+                type: "string",
+              },
+              errorReaction: {
                 type: "string",
               },
             },
