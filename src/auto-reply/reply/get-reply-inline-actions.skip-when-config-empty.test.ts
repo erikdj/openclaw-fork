@@ -37,7 +37,10 @@ const createTypingController = (): TypingController => ({
   refreshTypingTtl: () => {},
   isActive: () => false,
   markRunComplete: () => {},
+  markRunFailure: () => {},
   markDispatchIdle: () => {},
+  setSubagentActive: () => {},
+  refreshSubagentTtl: () => {},
   cleanup: vi.fn(),
 });
 

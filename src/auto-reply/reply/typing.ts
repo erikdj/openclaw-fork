@@ -9,23 +9,41 @@ export type TypingController = {
   refreshTypingTtl: () => void;
   isActive: () => boolean;
   markRunComplete: () => void;
+  markRunFailure: (reason?: string) => void;
   markDispatchIdle: () => void;
+  setSubagentActive: (active: boolean) => void;
+  refreshSubagentTtl: () => void;
   cleanup: () => void;
 };
 
 export function createTypingController(params: {
   onReplyStart?: () => Promise<void> | void;
+  /** Invoked on cleanup regardless of outcome (existing callers keep this behavior). */
   onCleanup?: () => void;
+  /** Invoked when the parent run completes successfully. Allows channel to swap alive-indicator to success-indicator. */
+  onRunSuccess?: () => void;
+  /** Invoked when the parent run ends in error. Allows channel to swap alive-indicator to failure-indicator. */
+  onRunFailure?: (reason?: string) => void;
+  /** Invoked when a subagent becomes active. Channel may add a subagent-indicator reaction. */
+  onSubagentStart?: () => void;
+  /** Invoked when the subagent stops or its TTL expires without refresh. */
+  onSubagentEnd?: () => void;
   typingIntervalSeconds?: number;
   typingTtlMs?: number;
+  subagentTtlMs?: number;
   silentToken?: string;
   log?: (message: string) => void;
 }): TypingController {
   const {
     onReplyStart,
     onCleanup,
+    onRunSuccess,
+    onRunFailure,
+    onSubagentStart,
+    onSubagentEnd,
     typingIntervalSeconds = 6,
     typingTtlMs = 2 * 60_000,
+    subagentTtlMs = 3 * 60_000,
     silentToken = SILENT_REPLY_TOKEN,
     log,
   } = params;
@@ -37,7 +55,10 @@ export function createTypingController(params: {
       refreshTypingTtl: () => {},
       isActive: () => false,
       markRunComplete: () => {},
+      markRunFailure: () => {},
       markDispatchIdle: () => {},
+      setSubagentActive: () => {},
+      refreshSubagentTtl: () => {},
       cleanup: () => {},
     };
   }
@@ -45,11 +66,16 @@ export function createTypingController(params: {
   let active = false;
   let runComplete = false;
   let dispatchIdle = false;
+  type RunOutcome = "idle" | "success" | "failure";
+  let runOutcome: RunOutcome = "idle";
+  let runFailureReason: string | undefined;
   // Important: callbacks (tool/block streaming) can fire late (after the run completed),
   // especially when upstream event emitters don't await async listeners.
   // Once we stop typing, we "seal" the controller so late events can't restart typing forever.
   let sealed = false;
   let typingTtlTimer: NodeJS.Timeout | undefined;
+  let subagentTtlTimer: NodeJS.Timeout | undefined;
+  let subagentActive = false;
   const typingIntervalMs = typingIntervalSeconds * 1000;
 
   const formatTypingTtl = (ms: number) => {
@@ -66,10 +92,7 @@ export function createTypingController(params: {
     dispatchIdle = false;
   };
 
-  const cleanup = () => {
-    if (sealed) {
-      return;
-    }
+  const clearTypingTimers = () => {
     if (typingTtlTimer) {
       clearTimeout(typingTtlTimer);
       typingTtlTimer = undefined;
@@ -78,10 +101,36 @@ export function createTypingController(params: {
       clearTimeout(dispatchIdleTimer);
       dispatchIdleTimer = undefined;
     }
+  };
+
+  const clearSubagentTimer = () => {
+    if (subagentTtlTimer) {
+      clearTimeout(subagentTtlTimer);
+      subagentTtlTimer = undefined;
+    }
+  };
+
+  const cleanup = () => {
+    if (sealed) {
+      return;
+    }
+    clearTypingTimers();
+    clearSubagentTimer();
     typingLoop.stop();
-    // Notify the channel to stop its typing indicator (e.g., on NO_REPLY).
-    // This fires only once (sealed prevents re-entry).
+    if (subagentActive) {
+      subagentActive = false;
+      onSubagentEnd?.();
+    }
     if (active) {
+      // Route to outcome-specific callbacks first (channels that opted in to
+      // the new success/failure handling can swap reactions here), then fall
+      // back to the generic onCleanup (existing channels keep their current
+      // stop-reaction behavior).
+      if (runOutcome === "success") {
+        onRunSuccess?.();
+      } else if (runOutcome === "failure") {
+        onRunFailure?.(runFailureReason);
+      }
       onCleanup?.();
     }
     resetCycle();
@@ -105,9 +154,57 @@ export function createTypingController(params: {
       if (!typingLoop.isRunning()) {
         return;
       }
-      log?.(`typing TTL reached (${formatTypingTtl(typingTtlMs)}); stopping typing indicator`);
-      cleanup();
+      log?.(`typing TTL reached (${formatTypingTtl(typingTtlMs)}); stopping typing loop`);
+      // TTL expiry stops the per-token typing loop but does NOT tear down the
+      // visual alive indicator. A parent that has detached while a subagent is
+      // running is genuinely idle from the typing-stream perspective, but the
+      // session is still alive — we want the channel to keep its `typingReaction`
+      // present until `cleanup()` is called with a real run outcome.
+      typingLoop.stop();
     }, typingTtlMs);
+  };
+
+  const refreshSubagentTtl = () => {
+    if (sealed) {
+      return;
+    }
+    if (subagentTtlMs <= 0) {
+      return;
+    }
+    if (!subagentActive) {
+      return;
+    }
+    if (subagentTtlTimer) {
+      clearTimeout(subagentTtlTimer);
+    }
+    subagentTtlTimer = setTimeout(() => {
+      log?.(
+        `subagent TTL reached (${formatTypingTtl(subagentTtlMs)}); clearing subagent indicator`,
+      );
+      // Subagent TTL expired without any activity events from the child. The
+      // handshake reaction is removed to signal a genuine stuck state.
+      if (subagentActive) {
+        subagentActive = false;
+        onSubagentEnd?.();
+      }
+    }, subagentTtlMs);
+  };
+
+  const setSubagentActive = (active: boolean) => {
+    if (sealed) {
+      return;
+    }
+    if (active && !subagentActive) {
+      subagentActive = true;
+      onSubagentStart?.();
+      refreshSubagentTtl();
+      return;
+    }
+    if (!active && subagentActive) {
+      clearSubagentTimer();
+      subagentActive = false;
+      onSubagentEnd?.();
+    }
   };
 
   const isActive = () => active && !sealed;
@@ -200,11 +297,30 @@ export function createTypingController(params: {
 
   const markRunComplete = () => {
     runComplete = true;
+    runOutcome = "success";
     maybeStopOnIdle();
     if (!sealed && !dispatchIdle) {
       dispatchIdleTimer = setTimeout(() => {
         if (!sealed && !dispatchIdle) {
           log?.("typing: dispatch idle not received after run complete; forcing cleanup");
+          cleanup();
+        }
+      }, DISPATCH_IDLE_GRACE_MS);
+    }
+  };
+
+  const markRunFailure = (reason?: string) => {
+    runComplete = true;
+    runOutcome = "failure";
+    runFailureReason = reason;
+    if (reason) {
+      log?.(`typing: run failure recorded (${reason})`);
+    }
+    maybeStopOnIdle();
+    if (!sealed && !dispatchIdle) {
+      dispatchIdleTimer = setTimeout(() => {
+        if (!sealed && !dispatchIdle) {
+          log?.("typing: dispatch idle not received after run failure; forcing cleanup");
           cleanup();
         }
       }, DISPATCH_IDLE_GRACE_MS);
@@ -227,7 +343,10 @@ export function createTypingController(params: {
     refreshTypingTtl,
     isActive,
     markRunComplete,
+    markRunFailure,
     markDispatchIdle,
+    setSubagentActive,
+    refreshSubagentTtl,
     cleanup,
   };
 }

@@ -103,7 +103,10 @@ describe("withReplyDispatcher", () => {
       refreshTypingTtl: vi.fn(),
       isActive: vi.fn(() => true),
       markRunComplete: vi.fn(),
+      markRunFailure: vi.fn(),
       markDispatchIdle: vi.fn(),
+      setSubagentActive: vi.fn(),
+      refreshSubagentTtl: vi.fn(),
       cleanup: vi.fn(),
     };
 

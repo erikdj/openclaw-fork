@@ -12,7 +12,10 @@ export function createMockTypingController(
     refreshTypingTtl: vi.fn(),
     isActive: vi.fn(() => false),
     markRunComplete: vi.fn(),
+    markRunFailure: vi.fn(),
     markDispatchIdle: vi.fn(),
+    setSubagentActive: vi.fn(),
+    refreshSubagentTtl: vi.fn(),
     cleanup: vi.fn(),
     ...overrides,
   };

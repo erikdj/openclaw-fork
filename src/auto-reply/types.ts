@@ -33,6 +33,14 @@ export type GetReplyOptions = {
   onReplyStart?: () => Promise<void> | void;
   /** Called when the typing controller cleans up (e.g., run ended with NO_REPLY). */
   onTypingCleanup?: () => void;
+  /** Called when the parent run completes successfully. Channels may swap alive-indicator to success. */
+  onTypingRunSuccess?: () => void;
+  /** Called when the parent run ends in error. Channels may swap alive-indicator to failure. */
+  onTypingRunFailure?: (reason?: string) => void;
+  /** Called when a subagent becomes active. Channels may add a subagent-indicator reaction. */
+  onTypingSubagentStart?: () => void;
+  /** Called when the subagent stops or its TTL expires. Channels should remove the subagent-indicator. */
+  onTypingSubagentEnd?: () => void;
   onTypingController?: (typing: TypingController) => void;
   isHeartbeat?: boolean;
   /** Policy-level typing control for run classes (user/system/internal/heartbeat). */

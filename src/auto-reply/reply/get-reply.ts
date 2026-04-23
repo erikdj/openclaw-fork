@@ -181,6 +181,10 @@ export async function getReplyFromConfig(
   const typing = createTypingController({
     onReplyStart: opts?.onReplyStart,
     onCleanup: opts?.onTypingCleanup,
+    onRunSuccess: opts?.onTypingRunSuccess,
+    onRunFailure: opts?.onTypingRunFailure,
+    onSubagentStart: opts?.onTypingSubagentStart,
+    onSubagentEnd: opts?.onTypingSubagentEnd,
     typingIntervalSeconds,
     silentToken: SILENT_REPLY_TOKEN,
     log: defaultRuntime.log,
