@@ -20,7 +20,7 @@ jobs:
       bun_checks_matrix: ${{ steps.manifest.outputs.bun_checks_matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           submodules: false
 
@@ -52,7 +52,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           submodules: false
 
@@ -84,7 +84,7 @@ jobs:
       matrix: ${{ fromJson(needs.preflight.outputs.bun_checks_matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           submodules: false
 
